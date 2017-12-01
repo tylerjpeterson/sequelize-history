@@ -46,10 +46,10 @@ To begin tracking a model's revisions:
 
 ```js
 // If you want a reference to the tracking model...
-const ModelHistory = revisionTracker(Model, sequelize);
+const ModelHistory = sequelizeHistory(Model, sequelize);
 
 // Otherwise...
-revisionTracker(Model, sequelize);
+sequelizeHistory(Model, sequelize);
 
 // You're done. 
 // A record of all changes to instances of 
