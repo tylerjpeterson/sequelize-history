@@ -18,6 +18,8 @@ const map = require('lodash/map');
  * @param {object} model - Sequelize model to track
  * @param {object} sequelize - Sequelize object (enforces installation above this module)
  * @param {object} options - Object instantiation options
+ *
+ * @param {string} options.authorFieldName - String to indicate a field name to store author of the revisions, or null to disable
  * @param {string} options.modelSuffix - String to append to tracked model's name when creating name of tracking model
  * @param {array} options.excludedAttributes - Collection of attributes to be excluded when creating history model from the target model
  * @param {array} options.excludedNames - Collection of options to filter out when creating history model from the target model
@@ -77,7 +79,7 @@ class SequelizeHistory {
 			}
 
 			if (f.fieldName === 'id') {
-				f.allowNull = true;
+				return;
 			}
 
 			attributes[field] = f;
@@ -92,12 +94,16 @@ class SequelizeHistory {
 	 * @return {object} - Model instance field options
 	 */
 	createSchema(sequelize) {
-		return {
-			revisionId: {
+		const schema = {
+			id: {
 				type: sequelize.INTEGER,
 				autoIncrement: true,
 				primaryKey: true,
 				unique: true
+			},
+			modelId: {
+				type: sequelize.INTEGER,
+				allowNull: true
 			},
 			archivedAt: {
 				type: sequelize.DATE,
@@ -105,6 +111,15 @@ class SequelizeHistory {
 				allowNull: false
 			}
 		};
+
+		if (this.options.authorFieldName !== null) {
+			schema[this.options.authorFieldName] = {
+				type: sequelize.INTEGER,
+				allowNull: true
+			};
+		}
+
+		return schema;
 	}
 
 	/**
@@ -140,6 +155,10 @@ class SequelizeHistory {
 	insertHook(doc, options) {
 		const dataValues = doc._previousDataValues || doc.dataValues;
 
+		dataValues.modelId = dataValues.id;
+
+		delete dataValues.id;
+
 		const historyRecord = this.modelHistory.create(dataValues, {
 			transaction: options.transaction
 		});
@@ -159,7 +178,11 @@ class SequelizeHistory {
 				transaction: options.transaction
 			}).then(hits => {
 				if (hits !== null) {
-					hits = map(hits, 'dataValues');
+					hits = map(hits, 'dataValues').map(hit => {
+						hit.modelId = hit.id;
+						delete hit.id;
+						return hit;
+					});
 
 					return this.modelHistory.bulkCreate(hits, {
 						transaction: options.transaction
@@ -192,6 +215,10 @@ class SequelizeHistory {
 }
 
 SequelizeHistory.DEFAULTS = {
+	// String to indicate a field name to use to store the
+	// author of the revisions to the model, or null if you
+	// don't want to track revision authors
+	authorFieldName: null,
 	// String to append to tracked model's name in creating
 	// name of model's history model
 	modelSuffix: 'History',
@@ -235,6 +262,7 @@ SequelizeHistory.DEFAULTS = {
  * @param {object} model - Sequelize model to track
  * @param {object} sequelize - Sequelize object (enforces installation above this module)
  * @param {object} options - Object instantiation options
+ * @param {string} options.authorFieldName - String to indicate a field name to store author of the revisions, or null to disable
  * @param {string} options.modelSuffix - String to append to tracked model's name when creating name of tracking model
  * @param {array} options.excludedAttributes - Collection of attributes to be excluded when creating history model from the target model
  * @param {array} options.excludedNames - Collection of options to filter out when creating history model from the target model
@@ -260,6 +288,7 @@ module.exports = (model, sequelize, options) => {
  *
  * @param {object} sequelize - Sequelize object (enforces installation above this module)
  * @param {object} options - Object instantiation options
+ * @param {string} options.authorFieldName - String to indicate a field name to store author of the revisions, or null to disable
  * @param {string} options.modelSuffix - String to append to tracked model's name when creating name of tracking model
  * @param {array} options.excludedAttributes - Collection of attributes to be excluded when creating history model from the target model
  * @param {array} options.excludedNames - Collection of options to filter out when creating history model from the target model

@@ -81,6 +81,7 @@ trackAll(sequelize);
 
 # Options
 The constructor and factory methods accept the following instantiation object properties:
+- **authorFieldName** `string|null` - string to indicate a field name to store author of the revisions, or null to disable
 - **modelSuffix** `string` - string to append to tracked model's name when creating name of tracking model
 - **excludedAttributes** `array` - collection of model attributes to be excluded when creating history model from the target model
 - **excludedNames** `array` - collection of model options to filter out when creating history model from the target model
@@ -89,6 +90,10 @@ The constructor and factory methods accept the following instantiation object pr
 
 ```js
 SequelizeHistory.DEFAULTS = {
+  // String to indicate a field name to use to store the
+  // author of the revisions to the model, or null if you
+  // don't want to track revision authors
+  authorFieldName: null,
   // String to append to tracked model's name in creating
   // name of model's history model
   modelSuffix: 'History',

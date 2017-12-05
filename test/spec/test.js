@@ -353,3 +353,27 @@ test('factories: all factory', t => {
 	t.equal(Object.keys(sequelize.models).length, 4, 'all 4 tracking instances created');
 	t.equal(Object.keys(instances).length, 2, 'all 2 tracking instances created');
 });
+
+test('authors: tracks author field', t => {
+	t.plan(1);
+
+	sequelize = new Sequelize('', '', '', {
+		dialect: 'sqlite',
+		logging: false,
+		operatorsAliases: false,
+		storage: path.join(__dirname, 'test.sqlite')
+	});
+
+	const instances = revisionTracker(sequelize.define('Fruit', {
+		name: {
+			type: Sequelize.TEXT,
+			set() {
+				triggered++;
+			}
+		}
+	}), sequelize, {
+		authorFieldName: 'authorId'
+	});
+
+	t.equal(typeof sequelize.models.FruitHistory.attributes.authorId, 'object', 'tracks author field');
+});
