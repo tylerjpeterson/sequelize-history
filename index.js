@@ -2,7 +2,6 @@
 
 const cloneDeep = require('lodash/cloneDeep');
 const merge = require('lodash/merge');
-const map = require('lodash/map');
 
 /**
  * @class
@@ -33,29 +32,59 @@ class SequelizeHistory {
 
 		this.model = model;
 
+		// Create name of tracking model by appending
+		// suffice option to the tracked model name
 		this.modelName = [
 			this.model.name,
 			this.options.modelSuffix
 		].join('');
 
+		// Create the tracking model's schema
 		this.fields = this.createSchema(
 			sequelize.Sequelize);
 
+		// Get the tracking model's attributes after
+		// filtering out unwanted attributes
 		const modelOptions = this.excludeAttributes(
 			this.model.options,
 			this.options.excludedNames);
 
+		// Get the tracking model's options after
+		// filtering out unwanted options
 		this.historyOptions = merge({},
 			modelOptions, {timestamps: false});
 
+		// Register the tracking model with Sequelize
 		sequelize.define(
 			this.modelName,
 			this.setAttributes(),
 			this.historyOptions);
 
+		// Store reference to the newly created tracking model
 		this.modelHistory = sequelize.models[this.modelName];
 
+		// Add static author tracking method to original model if enabled
+		if (typeof this.options.authorFieldName === 'string') {
+			this.addModelAuthorSetter(sequelize);
+		}
+
+		// Setup the necessary hooks for revision tracking
 		this.hookup();
+	}
+
+	/**
+	 * Adds a static `setRevisingAuthor` method to the tracked model if author tracking is enabled.
+	 * @private
+	 * @param {Sequelize} sequelize - The passed Sequelize instance
+	 */
+	addModelAuthorSetter(sequelize) {
+		const modelName = this.model.name;
+
+		sequelize.models[modelName].setRevisingAuthor = function (value) {
+			sequelize.models[modelName]._sequelizeHistoryProps = {
+				_authorId: value
+			};
+		};
 	}
 
 	/**
@@ -64,8 +93,9 @@ class SequelizeHistory {
 	 * @return {object}
 	 */
 	setAttributes() {
-		const attributes = [];
 		const cloned = cloneDeep(this.model.rawAttributes);
+
+		const attributes = [];
 
 		Object.keys(cloned).forEach(field => {
 			const f = this.excludeAttributes(
@@ -112,7 +142,8 @@ class SequelizeHistory {
 			}
 		};
 
-		if (this.options.authorFieldName !== null) {
+		// Add our author tracking field if set
+		if (typeof this.options.authorFieldName === 'string') {
 			schema[this.options.authorFieldName] = {
 				type: sequelize.INTEGER,
 				allowNull: true
@@ -157,6 +188,13 @@ class SequelizeHistory {
 
 		dataValues.modelId = dataValues.id;
 
+		// Grab the static revision author property from the tracked class
+		// and null it out after its first use when called via an instance
+		if (typeof this.options.authorFieldName === 'string') {
+			dataValues[this.options.authorFieldName] = this.model._sequelizeHistoryProps._authorId;
+			this.model._sequelizeHistoryProps._authorId = null;
+		}
+
 		delete dataValues.id;
 
 		const historyRecord = this.modelHistory.create(dataValues, {
@@ -178,13 +216,25 @@ class SequelizeHistory {
 				transaction: options.transaction
 			}).then(hits => {
 				if (hits !== null) {
-					hits = map(hits, 'dataValues').map(hit => {
-						hit.modelId = hit.id;
-						delete hit.id;
-						return hit;
+					const docs = hits.map(hit => {
+						const dataSet = cloneDeep(hit.dataValues);
+
+						// Grab the static revision author property from the tracked class
+						if (typeof this.options.authorFieldName === 'string') {
+							dataSet[this.options.authorFieldName] = this.model._sequelizeHistoryProps._authorId;
+						}
+
+						dataSet.modelId = hit.id;
+						delete dataSet.id;
+						return dataSet;
 					});
 
-					return this.modelHistory.bulkCreate(hits, {
+					// ...and null it out after all bulk updates are complete
+					if (typeof this.options.authorFieldName === 'string') {
+						this.model._sequelizeHistoryProps._authorId = null;
+					}
+
+					return this.modelHistory.bulkCreate(docs, {
 						transaction: options.transaction
 					});
 				}
@@ -197,9 +247,9 @@ class SequelizeHistory {
 	/**
 	 * Remove unwanted attributes when copying source model
 	 * @private
-	 * @param  {object} field [description]
-	 * @param  {array} attrs [description]
-	 * @return {object}       [description]
+	 * @param  {object} field - The field object being filtered
+	 * @param  {array} attrs - The attributes to filter out
+	 * @return {object} - Filtered field object
 	 */
 	excludeAttributes(field, attrs) {
 		const f = cloneDeep(field);

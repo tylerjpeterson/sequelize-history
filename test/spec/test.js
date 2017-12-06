@@ -2,6 +2,7 @@
 
 require('events').EventEmitter.defaultMaxListeners = 100;
 
+const fs = require('fs');
 const path = require('path');
 const test = require('tape');
 const Sequelize = require('sequelize');
@@ -20,6 +21,7 @@ const freshDb = () => {
 	});
 
 	User = sequelize.define('User', {name: Sequelize.TEXT});
+
 	UserRevision = revisionTracker(User, sequelize);
 
 	return sequelize.sync({force: true});
@@ -354,7 +356,7 @@ test('factories: all factory', t => {
 	t.equal(Object.keys(instances).length, 2, 'all 2 tracking instances created');
 });
 
-test('authors: tracks author field', t => {
+test('authors: creates author field', t => {
 	t.plan(1);
 
 	sequelize = new Sequelize('', '', '', {
@@ -364,16 +366,99 @@ test('authors: tracks author field', t => {
 		storage: path.join(__dirname, 'test.sqlite')
 	});
 
-	const instances = revisionTracker(sequelize.define('Fruit', {
-		name: {
-			type: Sequelize.TEXT,
-			set() {
-				triggered++;
-			}
-		}
+	revisionTracker(sequelize.define('Fruit', {
+		name: {type: Sequelize.TEXT}
 	}), sequelize, {
 		authorFieldName: 'authorId'
 	});
 
-	t.equal(typeof sequelize.models.FruitHistory.attributes.authorId, 'object', 'tracks author field');
+	t.equal(typeof sequelize.models.FruitHistory.attributes.authorId,
+		'object', 'tracks author field');
+});
+
+test('authors: tracks revision author', t => {
+	t.plan(2);
+	const dbPath = path.join(__dirname, 'test.sqlite');
+	let fruit = null;
+
+	fs.unlinkSync(dbPath);
+
+	sequelize = new Sequelize('', '', '', {
+		dialect: 'sqlite',
+		logging: false,
+		operatorsAliases: false,
+		storage: dbPath
+	});
+
+	const Fruit = sequelize.define('Fruit', {
+		name: {type: Sequelize.TEXT}
+	});
+
+	revisionTracker(Fruit, sequelize, {authorFieldName: 'authorId'});
+
+	return new Promise((resolve, reject) => {
+		sequelize.sync({force: true})
+			.then(() => sequelize.models.Fruit.create({name: 'test'}))
+			.then(f => {
+				fruit = f;
+				Fruit.setRevisingAuthor(50);
+				return fruit.update({name: 'new-name'});
+			})
+			.then(() => sequelize.models.FruitHistory.find({where: {name: 'test'}}))
+			.then(fruitHistory => {
+				t.equal(typeof Fruit.setRevisingAuthor, 'function', 'writes method to model');
+				t.equal(fruitHistory.authorId, 50, 'tracks revision author');
+				return resolve();
+			})
+			.catch(err => {
+				console.error(err);
+				return reject(err);
+			});
+	});
+});
+
+test('authors: tracks builk revisions', t => {
+	t.plan(3);
+	const dbPath = path.join(__dirname, 'test.sqlite');
+
+	fs.unlinkSync(dbPath);
+
+	sequelize = new Sequelize('', '', '', {
+		dialect: 'sqlite',
+		logging: false,
+		operatorsAliases: false,
+		storage: dbPath
+	});
+
+	const Fruit = sequelize.define('Fruit', {
+		name: {type: Sequelize.TEXT}
+	});
+
+	revisionTracker(Fruit, sequelize, {authorFieldName: 'authorId'});
+
+	return new Promise((resolve, reject) => {
+		sequelize.sync({force: true})
+			.then(() => sequelize.models.Fruit.create({name: 'test-1'}))
+			.then(() => sequelize.models.Fruit.create({name: 'test-2'}))
+			.then(() => {
+				Fruit.setRevisingAuthor(50);
+				return Fruit.update({name: 'new-names'}, {where: {}});
+			})
+			.then(() => sequelize.models.FruitHistory.findAll({where: {}}))
+			.then(fruitHistories => {
+				fruitHistories.forEach((fruitHistory, idx) => {
+					t.equal(fruitHistory.authorId,
+						50, `tracks bulk revision #${idx + 1}`);
+				});
+
+				t.equal(Fruit._sequelizeHistoryProps._authorId,
+					null, 'resets authorId post-revision');
+
+				return resolve();
+			})
+			.catch(err => {
+				console.error(err);
+				return reject(err);
+			});
+	});
 });

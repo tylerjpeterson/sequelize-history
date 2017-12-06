@@ -9,6 +9,7 @@ More specifically...
 
 - re-written in ES6-_ish_ code 
 - addition of a couple of factory methods to make instantiation simpler (this is especially true if you're going to track revisions on all of your models)
+- optionally tracks revision author
 - a few new instantiation options
 - up-to-date dependencies
 - tests re-written in `tape`
@@ -78,6 +79,55 @@ const trackAll = require('sequelize-history').all;
 
 trackAll(sequelize);
 ```
+
+## Tracking revision author
+If you pass an `authorFieldName` option, the tracking model gets a field of the same name added to its table.
+It also results in your original model getting a new `setRevisionAuthor` static method.
+
+Use this method by passing in any appropriate value before updating your original model instances, and the passed value will be written to the `authorFieldName` column of the tracking table.
+The value is reset immediately after the next update is written to the history model.
+
+_This functionality is available to both single instance updates and static bulk updates._
+
+```js
+const Sequelize = require('sequelize');
+const sequelizeHistory = require('sequelize-history');
+
+// Create a sequelize instance
+const sequelize = new Sequelize('', '', '', {
+  dialect: 'sqlite',
+  operatorsAliases: false,
+  storage: path.join(__dirname, 'test.sqlite')
+});
+
+// Create the model class to be tracked
+const Model = sequelize.define('Model', {name: Sequelize.TEXT});
+
+// Create some instances of the model
+Model
+  .create({name: 'test-1'})
+  .then(() => Model.create({name: 'test-2'}))
+  .then(() => {
+    // Now we update our instances
+    // First, set the revision author
+    Model.setRevisingAuthor(100);
+    // Then update the instances
+    // Both bulk updates and instance updates are supported
+    return Model.update({name: 'same'}, {where: {}});
+  })
+  // Get all of our recent revisions
+  .then(() => sequelize.models.ModelHistory.findAll({where: {name: 'same'}}))
+  .then(revisions => {
+    revisions.forEach(revision => {
+      // Should output 100 for each returned row
+      console.log(revision.authorId);
+    });
+  })
+  .catch(err => console.error.bind(console));
+```
+
+There are more examples in the tests.
+
 
 # Options
 The constructor and factory methods accept the following instantiation object properties:
