@@ -2,7 +2,7 @@
   "name": "sequelize-history",
   "description": "Creates a revision history for instances of a given Sequelize model.",
   "author": "tyler peterson <tylerjpeterson@gmail.com>",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "index.js",
   "scripts": {
     "coverage": "istanbul cover tape ./test/spec/test.js --output coverage/coverage.json && npm run report",
