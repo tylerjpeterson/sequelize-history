@@ -190,7 +190,8 @@ class SequelizeHistory {
 
 		// Grab the static revision author property from the tracked class
 		// and null it out after its first use when called via an instance
-		if (typeof this.options.authorFieldName === 'string') {
+		if (typeof this.options.authorFieldName === 'string' &&
+			typeof this.model._sequelizeHistoryProps !== 'undefined') {
 			dataValues[this.options.authorFieldName] = this.model._sequelizeHistoryProps._authorId;
 			this.model._sequelizeHistoryProps._authorId = null;
 		}
@@ -220,7 +221,8 @@ class SequelizeHistory {
 						const dataSet = cloneDeep(hit.dataValues);
 
 						// Grab the static revision author property from the tracked class
-						if (typeof this.options.authorFieldName === 'string') {
+						if (typeof this.options.authorFieldName === 'string' &&
+							typeof this.model._sequelizeHistoryProps !== 'undefined') {
 							dataSet[this.options.authorFieldName] = this.model._sequelizeHistoryProps._authorId;
 						}
 
@@ -230,7 +232,8 @@ class SequelizeHistory {
 					});
 
 					// ...and null it out after all bulk updates are complete
-					if (typeof this.options.authorFieldName === 'string') {
+					if (typeof this.options.authorFieldName === 'string' &&
+						typeof this.model._sequelizeHistoryProps !== 'undefined') {
 						this.model._sequelizeHistoryProps._authorId = null;
 					}
 
