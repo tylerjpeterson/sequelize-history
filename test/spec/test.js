@@ -462,3 +462,39 @@ test('authors: tracks builk revisions', t => {
 			});
 	});
 });
+
+test('attributes: ignore excluded attributes', t => {
+	t.plan(1);
+	const dbPath = path.join(__dirname, 'test.sqlite');
+
+	fs.unlinkSync(dbPath);
+
+	sequelize = new Sequelize('', '', '', {
+		dialect: 'sqlite',
+		logging: false,
+		operatorsAliases: false,
+		storage: dbPath
+	});
+
+	const Fruit = sequelize.define('Fruit', {
+		name: {type: Sequelize.TEXT},
+		type: {type: Sequelize.TEXT}
+	});
+
+	revisionTracker(Fruit, sequelize, {excludedAttributes: ['type']});
+
+	return new Promise((resolve, reject) => {
+		sequelize.sync({force: true})
+			.then(() => sequelize.models.Fruit.create({name: 'test-1', type: 'apple'}))
+			.then(() => sequelize.models.Fruit.create({name: 'test-2', type: 'pear'}))
+			.then(() => {
+				t.equal(typeof sequelize.models.FruitHistory.attributes.type,
+					'undefined', `no field when ignoring attribute`);
+				return resolve();
+			})
+			.catch(err => {
+				console.error(err);
+				return reject(err);
+			});
+	});
+});

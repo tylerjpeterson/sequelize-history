@@ -136,41 +136,38 @@ The constructor and factory methods accept the following instantiation object pr
 - **excludedAttributes** `array` - collection of model attributes to be excluded when creating history model from the target model
 - **excludedNames** `array` - collection of model options to filter out when creating history model from the target model
 
+**NOTE** - if `authorFieldName` is set, `hasMany` and `belongsTo` relationships will be created between the history model and the target model.
+This is to ensure that constraints are not enforced in creating the associations.
+
 ### Defaults
 
 ```js
 SequelizeHistory.DEFAULTS = {
-  // String to indicate a field name to use to store the
-  // author of the revisions to the model, or null if you
-  // don't want to track revision authors
-  authorFieldName: null,
-  // String to append to tracked model's name in creating
-  // name of model's history model
-  modelSuffix: 'History',
-  // Collection of attributes to be excluded when creating
-  // history model from the target model
-  excludedAttributes: [
-    'Model',
-    'unique',
-    'primaryKey',
-    'autoIncrement',
-    'set',
-    'get',
-    '_modelAttribute'
-  ],
-  // Collection of options to filter out when creating
-  // history model from the target model
-  excludedNames: [
-    'name',
-    'tableName',
-    'sequelize',
-    'uniqueKeys',
-    'hasPrimaryKey',
-    'hooks',
-    'scopes',
-    'instanceMethods',
-    'defaultScope'
-  ]
+    // String to indicate a field name to use to store the
+    // author of the revisions to the model, or null if you
+    // don't want to track revision authors
+    authorFieldName: null,
+    // String to append to tracked model's name in creating
+    // name of model's history model
+    modelSuffix: 'History',
+    // Array of attributes to be ignored and excluded when
+    // recording a change to the target model
+    excludedAttributes: [],
+    // Array of attribute properties to ignore when duplicating
+    // the target model's attributes - this is mostly to prevent
+    // the use of constraints that may be in place on the target
+    excludedAttributeProperties: [
+        'Model',
+        'unique',
+        'primaryKey',
+        'references',
+        'onUpdate',
+        'onDelete',
+        'autoIncrement',
+        'set',
+        'get',
+        '_modelAttribute'
+    ]
 };
 ```
 

@@ -17,11 +17,10 @@ const merge = require('lodash/merge');
  * @param {object} model - Sequelize model to track
  * @param {object} sequelize - Sequelize object (enforces installation above this module)
  * @param {object} options - Object instantiation options
- *
  * @param {string} options.authorFieldName - String to indicate a field name to store author of the revisions, or null to disable
  * @param {string} options.modelSuffix - String to append to tracked model's name when creating name of tracking model
- * @param {array} options.excludedAttributes - Collection of attributes to be excluded when creating history model from the target model
- * @param {array} options.excludedNames - Collection of options to filter out when creating history model from the target model
+ * @param {array} options.excludedAttributes - Array of attributes to be ignored and excluded when recording a change to the target model
+ * @param {array} options.excludedAttributeProperties - Array of attribute properties to ignore when duplicating the target model's attributes
  * @return {null}
  */
 class SequelizeHistory {
@@ -43,22 +42,11 @@ class SequelizeHistory {
 		this.fields = this.createSchema(
 			sequelize.Sequelize);
 
-		// Get the tracking model's attributes after
-		// filtering out unwanted attributes
-		const modelOptions = this.excludeAttributes(
-			this.model.options,
-			this.options.excludedNames);
-
-		// Get the tracking model's options after
-		// filtering out unwanted options
-		this.historyOptions = merge({},
-			modelOptions, {timestamps: false});
-
 		// Register the tracking model with Sequelize
 		sequelize.define(
 			this.modelName,
 			this.setAttributes(),
-			this.historyOptions);
+			{});
 
 		// Store reference to the newly created tracking model
 		this.modelHistory = sequelize.models[this.modelName];
@@ -66,6 +54,20 @@ class SequelizeHistory {
 		// Add static author tracking method to original model if enabled
 		if (typeof this.options.authorFieldName === 'string') {
 			this.addModelAuthorSetter(sequelize);
+
+			// Add relationship with the original model to ensure
+			// table constraints are not applied if added manually
+			this.model.hasMany(this.modelHistory, {
+				foreignKey: 'modelId',
+				contraints: false,
+				as: 'revisions'
+			});
+
+			this.modelHistory.belongsTo(this.model, {
+				foreignKey: 'modelId',
+				contraints: false,
+				as: 'model'
+			});
 		}
 
 		// Setup the necessary hooks for revision tracking
@@ -98,20 +100,35 @@ class SequelizeHistory {
 		const attributes = [];
 
 		Object.keys(cloned).forEach(field => {
-			const f = this.excludeAttributes(
-				cloned[field],
-				this.options.excludedAttributes);
+			const f = cloned[field];
 
-			if (f.fieldName === 'createdAt' ||
-				f.fieldName === 'updatedAt') {
-				delete f.defaultValue;
-				f.allowNull = true;
+			// If attribute should be excluded, skip...
+			if (this.options.excludedAttributes.indexOf(f.fieldName) > -1) {
+				return;
 			}
 
+			// Skip the id attribute...
 			if (f.fieldName === 'id') {
 				return;
 			}
 
+			// Remove any attribute properties that should be excluded...
+			this.options.excludedAttributeProperties.forEach(prop => {
+				if (typeof f[prop] !== 'undefined') {
+					delete f[prop];
+				}
+			});
+
+			// Remove the default behavior of auto-updating the timestamps...
+			if (f.fieldName === 'createdAt' ||
+				f.fieldName === 'updatedAt') {
+				delete f.defaultValue;
+			}
+
+			// Allow all fields to be NULL...
+			f.allowNull = true;
+
+			// And store the modified attribute
 			attributes[field] = f;
 		});
 
@@ -246,25 +263,6 @@ class SequelizeHistory {
 			return queryAll;
 		}
 	}
-
-	/**
-	 * Remove unwanted attributes when copying source model
-	 * @private
-	 * @param  {object} field - The field object being filtered
-	 * @param  {array} attrs - The attributes to filter out
-	 * @return {object} - Filtered field object
-	 */
-	excludeAttributes(field, attrs) {
-		const f = cloneDeep(field);
-
-		attrs.forEach(attr => {
-			if (typeof f[attr] !== 'undefined') {
-				delete f[attr];
-			}
-		});
-
-		return f;
-	}
 }
 
 SequelizeHistory.DEFAULTS = {
@@ -275,29 +273,23 @@ SequelizeHistory.DEFAULTS = {
 	// String to append to tracked model's name in creating
 	// name of model's history model
 	modelSuffix: 'History',
-	// Collection of attributes to be excluded when creating
-	// history model from the target model
-	excludedAttributes: [
+	// Array of attributes to be ignored and excluded when
+	// recording a change to the target model
+	excludedAttributes: [],
+	// Array of attribute properties to ignore when duplicating
+	// the target model's attributes - this is mostly to prevent
+	// the use of constraints that may be in place on the target
+	excludedAttributeProperties: [
 		'Model',
 		'unique',
 		'primaryKey',
+		'references',
+		'onUpdate',
+		'onDelete',
 		'autoIncrement',
 		'set',
 		'get',
 		'_modelAttribute'
-	],
-	// Collection of options to filter out when creating
-	// history model from the target model
-	excludedNames: [
-		'name',
-		'tableName',
-		'sequelize',
-		'uniqueKeys',
-		'hasPrimaryKey',
-		'hooks',
-		'scopes',
-		'instanceMethods',
-		'defaultScope'
 	]
 };
 
@@ -317,8 +309,8 @@ SequelizeHistory.DEFAULTS = {
  * @param {object} options - Object instantiation options
  * @param {string} options.authorFieldName - String to indicate a field name to store author of the revisions, or null to disable
  * @param {string} options.modelSuffix - String to append to tracked model's name when creating name of tracking model
- * @param {array} options.excludedAttributes - Collection of attributes to be excluded when creating history model from the target model
- * @param {array} options.excludedNames - Collection of options to filter out when creating history model from the target model
+ * @param {array} options.excludedAttributes - Array of attributes to be ignored and excluded when recording a change to the target model
+ * @param {array} options.excludedAttributeProperties - Array of attribute properties to ignore when duplicating the target model's attributes
  * @return {object} - returns the tracked model and generated tracking model
  */
 module.exports = (model, sequelize, options) => {
@@ -343,8 +335,8 @@ module.exports = (model, sequelize, options) => {
  * @param {object} options - Object instantiation options
  * @param {string} options.authorFieldName - String to indicate a field name to store author of the revisions, or null to disable
  * @param {string} options.modelSuffix - String to append to tracked model's name when creating name of tracking model
- * @param {array} options.excludedAttributes - Collection of attributes to be excluded when creating history model from the target model
- * @param {array} options.excludedNames - Collection of options to filter out when creating history model from the target model
+ * @param {array} options.excludedAttributes - Array of attributes to be ignored and excluded when recording a change to the target model
+ * @param {array} options.excludedAttributeProperties - Array of attribute properties to ignore when duplicating the target model's attributes
  * @return {null}
  */
 module.exports.all = (sequelize, options) => {
