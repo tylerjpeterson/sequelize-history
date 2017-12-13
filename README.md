@@ -134,7 +134,7 @@ The constructor and factory methods accept the following instantiation object pr
 - **authorFieldName** `string|null` - string to indicate a field name to store author of the revisions, or null to disable
 - **modelSuffix** `string` - string to append to tracked model's name when creating name of tracking model
 - **excludedAttributes** `array` - collection of model attributes to be excluded when creating history model from the target model
-- **excludedNames** `array` - collection of model options to filter out when creating history model from the target model
+- **excludedAttributeProperties** `array` - collection of attribute properties to ignore when duplicating the target model's attributes
 
 **NOTE** - if `authorFieldName` is set, `hasMany` and `belongsTo` relationships will be created between the history model and the target model.
 This is to ensure that constraints are not enforced in creating the associations.
