@@ -13,3 +13,4 @@ tag.prop
 /docs
 /tmp
 /test/spec/test.sqlite
+/package-lock.json
