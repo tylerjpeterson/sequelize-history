@@ -176,12 +176,12 @@ class SequelizeHistory {
 	 * @return {null}
 	 */
 	hookup() {
-		this.model.hook('beforeUpdate', this.insertHook.bind(this));
-		this.model.hook('beforeDestroy', this.insertHook.bind(this));
-		this.model.hook('beforeBulkUpdate', this.insertBulkHook.bind(this));
-		this.model.hook('beforeBulkDestroy', this.insertBulkHook.bind(this));
-		this.modelHistory.hook('beforeUpdate', this.readOnlyHook.bind(this));
-		this.modelHistory.hook('beforeDestroy', this.readOnlyHook.bind(this));
+		this.model.addHook('beforeUpdate', this.insertHook.bind(this));
+		this.model.addHook('beforeDestroy', this.insertHook.bind(this));
+		this.model.addHook('beforeBulkUpdate', this.insertBulkHook.bind(this));
+		this.model.addHook('beforeBulkDestroy', this.insertBulkHook.bind(this));
+		this.modelHistory.addHook('beforeUpdate', this.readOnlyHook.bind(this));
+		this.modelHistory.addHook('beforeDestroy', this.readOnlyHook.bind(this));
 	}
 
 	/**
