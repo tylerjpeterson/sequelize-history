@@ -404,7 +404,7 @@ test('authors: tracks revision author', t => {
 				Fruit.setRevisingAuthor(50);
 				return fruit.update({name: 'new-name'});
 			})
-			.then(() => sequelize.models.FruitHistory.find({where: {name: 'test'}}))
+			.then(() => sequelize.models.FruitHistory.findOne({where: {name: 'test'}}))
 			.then(fruitHistory => {
 				t.equal(typeof Fruit.setRevisingAuthor, 'function', 'writes method to model');
 				t.equal(fruitHistory.authorId, 50, 'tracks revision author');
