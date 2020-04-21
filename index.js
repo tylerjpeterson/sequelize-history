@@ -141,6 +141,10 @@ class SequelizeHistory {
 	 * @return {object} - Model instance field options
 	 */
 	createSchema(sequelize) {
+		const existingIDType = (this.model.rawAttributes.id.type.keys === 'INTEGER')
+			? sequelize.INTEGER
+			: sequelize.UUID;
+
 		const schema = {
 			id: {
 				type: sequelize.INTEGER,
@@ -149,7 +153,7 @@ class SequelizeHistory {
 				unique: true
 			},
 			modelId: {
-				type: sequelize.INTEGER,
+				type: existingIDType,
 				allowNull: true
 			},
 			archivedAt: {
