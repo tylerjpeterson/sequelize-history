@@ -7,7 +7,7 @@ This module will setup automatic revision tracking for any [Sequelize](https://g
 This is effectively a re-write of [`sequelize-temporal`](https://github.com/bonaval/sequelize-temporal), which deserves any and all due credit.
 More specifically...
 
-- re-written in ES6-_ish_ code 
+- re-written in ES6-_ish_ code
 - addition of a couple of factory methods to make instantiation simpler (this is especially true if you're going to track revisions on all of your models)
 - optionally tracks revision author
 - a few new instantiation options

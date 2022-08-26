@@ -1,36 +1,39 @@
 {
-  "name": "sequelize-history",
+  "name": "@sthumma/sequelize-history",
   "description": "Creates a revision history for instances of a given Sequelize model.",
-  "author": "tyler peterson <tylerjpeterson@gmail.com>",
-  "version": "1.4.0",
+  "author": "Sridhar Thumma <sridhar4thumma@gmail.com>",
+  "version": "1.4.1",
   "main": "index.js",
   "scripts": {
-    "coverage": "istanbul cover tape ./test/spec/test.js --output coverage/coverage.json && npm run report",
+    "coverage": "nyc npm run test",
     "report": "istanbul report --root coverage lcov && open coverage/lcov-report/index.html",
     "lint": "xo ./index.js || true && xo ./test/spec/test.js || true",
     "docs": "jsdoc index.js -p -c .jsdoc.json -d docs/",
-    "test": "node test/spec/test.js | tap-spec"
+    "test": "node test/spec/test.js | tap-spec",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "dependencies": {
-    "lodash": "^4.17.4"
+    "lodash": "^4.17.20",
+    "snyk": "^1.685.0"
   },
   "devDependencies": {
-    "istanbul": "^0.4.5",
-    "jsdoc": "^3.5.4",
-    "sequelize": "^4.23.4",
+    "jsdoc": "^3.6.3",
+    "nyc": "^14.1.1",
+    "sequelize": "^4.44.3",
     "sqlite3": "^4.1.0",
     "tap-spec": "^5.0.0",
-    "tape": "^4.6.3",
-    "xo": "^0.18.2"
+    "tape": "^4.11.0",
+    "xo": "^0.52.1"
   },
   "bugs": {
-    "url": "https://github.com/tylerjpeterson/sequelize-history/issues"
+    "url": "https://github.com/sthumma/sequelize-history/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tylerjpeterson/sequelize-history"
+    "url": "https://github.com/sthumma/sequelize-history.git"
   },
-  "homepage": "https://github.com/tylerjpeterson/sequelize-history",
+  "homepage": "https://github.com/sthumma/sequelize-history",
   "contributors": [
     ""
   ],
@@ -49,5 +52,9 @@
   "engines": {
     "node": ">=8.9.1"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "directories": {
+    "test": "test"
+  },
+  "snyk": true
 }

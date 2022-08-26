@@ -178,10 +178,12 @@ class SequelizeHistory {
 	hookup() {
 		this.model.addHook('beforeUpdate', this.insertHook.bind(this));
 		this.model.addHook('beforeDestroy', this.insertHook.bind(this));
+		this.model.addHook('beforeUpsert', this.insertHook.bind(this));
 		this.model.addHook('beforeBulkUpdate', this.insertBulkHook.bind(this));
 		this.model.addHook('beforeBulkDestroy', this.insertBulkHook.bind(this));
 		this.modelHistory.addHook('beforeUpdate', this.readOnlyHook.bind(this));
 		this.modelHistory.addHook('beforeDestroy', this.readOnlyHook.bind(this));
+		this.modelHistory.addHook('beforeUpsert', this.readOnlyHook.bind(this));
 	}
 
 	/**
@@ -203,6 +205,11 @@ class SequelizeHistory {
 	insertHook(doc, options) {
 		const dataValues = doc._previousDataValues || doc.dataValues;
 
+		// for upsert action - if id is null which means insert, return null. create history record only for update
+		if (!dataValues.id){
+			return null;
+		}
+
 		dataValues.modelId = dataValues.id;
 
 		// Grab the static revision author property from the tracked class
@@ -215,11 +222,9 @@ class SequelizeHistory {
 
 		delete dataValues.id;
 
-		const historyRecord = this.modelHistory.create(dataValues, {
+		return this.modelHistory.create(dataValues, {
 			transaction: options.transaction
 		});
-
-		return historyRecord;
 	}
 
 	/**
@@ -229,7 +234,7 @@ class SequelizeHistory {
 	 */
 	insertBulkHook(options) {
 		if (!options.individualHooks) {
-			const queryAll = this.model.findAll({
+			return this.model.findAll({
 				where: options.where,
 				transaction: options.transaction
 			}).then(hits => {
@@ -259,8 +264,6 @@ class SequelizeHistory {
 					});
 				}
 			});
-
-			return queryAll;
 		}
 	}
 }
