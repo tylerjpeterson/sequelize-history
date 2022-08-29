@@ -46,7 +46,7 @@ class SequelizeHistory {
 		sequelize.define(
 			this.modelName,
 			this.setAttributes(),
-			{});
+			this.options.modelOptions);
 
 		// Store reference to the newly created tracking model
 		this.modelHistory = sequelize.models[this.modelName];
@@ -106,7 +106,6 @@ class SequelizeHistory {
 			if (this.options.excludedAttributes.indexOf(f.fieldName) > -1) {
 				return;
 			}
-
 			// Skip the id attribute...
 			if (f.fieldName === 'id') {
 				return;
@@ -149,7 +148,7 @@ class SequelizeHistory {
 				unique: true
 			},
 			modelId: {
-				type: sequelize.INTEGER,
+				type: this.model.rawAttributes.id.type.keys === 'INTEGER' ? sequelize.INTEGER : sequelize.UUID,
 				allowNull: true
 			},
 			archivedAt: {
@@ -203,11 +202,15 @@ class SequelizeHistory {
 	 * @return {Sequelize.Model} - Instance representing the revision
 	 */
 	insertHook(doc, options) {
-		const dataValues = doc._previousDataValues || doc.dataValues;
+		let dataValues = doc._previousDataValues || doc.dataValues || doc;
 
 		// for upsert action - if id is null which means insert, return null. create history record only for update
-		if (!dataValues.id){
-			return null;
+		if (!dataValues) {
+			if (doc && doc.id) {
+				dataValues = doc;
+			} else {
+				return null;
+			}
 		}
 
 		dataValues.modelId = dataValues.id;
@@ -249,6 +252,10 @@ class SequelizeHistory {
 						}
 
 						dataSet.modelId = hit.id;
+						// update deleteAt when records are deleted if deletedAt is not populated through model.
+						if ( options.type === 'BULKDELETE' && this.model.rawAttributes.deletedAt && !dataSet[this.model.rawAttributes.deletedAt.fieldName]) {
+							dataSet[this.model.rawAttributes.deletedAt.fieldName] = this.model.sequelize.fn('NOW')
+						}
 						delete dataSet.id;
 						return dataSet;
 					});
@@ -293,7 +300,8 @@ SequelizeHistory.DEFAULTS = {
 		'set',
 		'get',
 		'_modelAttribute'
-	]
+	],
+	modelOptions: {},
 };
 
 /**
