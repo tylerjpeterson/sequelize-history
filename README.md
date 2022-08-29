@@ -167,7 +167,9 @@ SequelizeHistory.DEFAULTS = {
         'set',
         'get',
         '_modelAttribute'
-    ]
+    ],
+    // Sequelize options for history table
+    modelOptions
 };
 ```
 
